@@ -1,0 +1,32 @@
+{
+  "id": "1773929350_0",
+  "origin_url": "https://www.itu.edu.tr",
+  "depth": 3,
+  "status": "finished",
+  "logs": [
+    "[17:09:10] Starting job 1773929350_0 for https://www.itu.edu.tr (Depth: 3, Workers: 10)",
+    "[17:09:10] Crawling https://www.itu.edu.tr at depth 0",
+    "[17:09:13] Crawling https://global.itu.edu.tr/ at depth 1",
+    "[17:09:13] Crawling https://www.youtube.com/itu1773 at depth 1",
+    "[17:09:13] Crawling https://haberler.itu.edu.tr/haber-detay//2026/03/16/itu-cop31-bilim-platformu-calistayi at depth 1",
+    "[17:09:14] Crawling http://tanitim.itu.edu.tr/ at depth 1",
+    "[17:09:14] Crawling https://cdn.jsdelivr.net/gh/fancyapps/fancybox@3.5.7/dist/jquery.fancybox.min.css at depth 1",
+    "[17:09:14] Crawling https://haberler.itu.edu.tr/haber-detay//2026/03/12/waitro-summit-2026-itu-ev-sahipliginde-gerceklesiyor at depth 1",
+    "[17:09:14] Crawling https://kutuphane.itu.edu.tr/ at depth 1",
+    "[17:09:14] Crawling https://twitter.com/itu1773 at depth 1",
+    "[17:09:14] Crawling https://www.facebook.com/itu1773 at depth 1",
+    "[17:09:14] Crawling https://www.instagram.com/itu1773/ at depth 1",
+    "[17:09:16] Crawling https://haberler.itu.edu.tr/haber-detay//2026/03/17/mezunumuz-eren-dikmen-avrupa-patent-ofisinin-epo-tanitim-yuzu-oldu at depth 1",
+    "[17:09:18] Crawling https://sosyal.teknofest.app/@itu1773tr at depth 1",
+    "[17:09:19] Job cancelled by user.",
+    "[17:09:39] Job completed successfully."
+  ],
+  "queue": null,
+  "start_time": "2026-03-19T17:09:10.91722+03:00",
+  "end_time": "2026-03-19T17:09:39.824989+03:00",
+  "duration": 28,
+  "max_workers": 10,
+  "crawled_count": 13,
+  "error_count": 0,
+  "total_found": 85
+}
