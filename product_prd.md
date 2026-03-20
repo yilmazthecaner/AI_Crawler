@@ -8,8 +8,12 @@ SpiderSearch is a high-performance, single-machine web crawler and real-time sea
 ### 2.1 The Indexer (Crawler)
 - **Recursive Depth Crawling**: Crawls from an `origin` URL up to `k` hops.
 - **Uniqueness Guarantee**: Implements a thread-safe "Visited" set to avoid redundant work and cycles.
-- **Back-Pressure Management**: Limits concurrent workers and manages queue depth to avoid resource exhaustion.
-- **Raw Implementation**: Uses only native `net/http` and `net/url` (Go standard library).
+- **Back-Pressure Management**: 
+    - **Worker Semaphore**: Limits concurrent fetch routines.
+    - **Hit Rate Limiting**: Token-bucket style rate limiting (req/s) to respect target server load.
+    - **Queue Capacity**: Hard limit on the internal URL backlog to manage memory usage.
+    - **Max URL Stop**: Global constraint to prevent infinite crawls.
+- **Raw Implementation**: Uses `net/http` and `os/exec` (curl) for fetching, and standard `regexp` for parsing, avoiding high-level crawling libraries.
 
 ### 2.2 The Searcher
 - **Live Querying**: Search engine functional *while* crawling is in progress.

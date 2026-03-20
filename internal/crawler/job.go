@@ -32,43 +32,60 @@ type Job struct {
 	StartTime    time.Time            `json:"start_time"`
 	EndTime      time.Time            `json:"end_time"`
 	Duration     int                  `json:"duration"`
-	MaxWorkers   int                  `json:"max_workers"`
-	CrawledCount int                  `json:"crawled_count"`
-	ErrorCount   int                  `json:"error_count"`
-	TotalFound   int                  `json:"total_found"`
-	FileIndex    *index.FileIndex     `json:"-"`
-	mu           sync.Mutex
-	wg           sync.WaitGroup
-	visitedFile  string
-	visited      map[string]bool
-	semaphore    chan struct{}
-	ctx          context.Context
-	cancel       context.CancelFunc
+	MaxWorkers    int                  `json:"max_workers"`
+	HitRate       int                  `json:"hit_rate"`       // Hits per second
+	QueueCapacity int                  `json:"queue_capacity"` // Max length of internal slice queue
+	MaxURLs       int                  `json:"max_urls"`       // Max URLs to visit total
+	CrawledCount  int                  `json:"crawled_count"`
+	ErrorCount    int                  `json:"error_count"`
+	TotalFound    int                  `json:"total_found"`
+	FileIndex     *index.FileIndex     `json:"-"`
+	mu            sync.Mutex
+	wg            sync.WaitGroup
+	visitedFile   string
+	visited       map[string]bool
+	semaphore     chan struct{}
+	rateLimiter   *time.Ticker
+	ctx           context.Context
+	cancel        context.CancelFunc
 }
 
-func NewJob(origin string, depth, workers int, fi *index.FileIndex) *Job {
+func NewJob(origin string, depth, workers, hitRate, queueCap, maxURLs int, fi *index.FileIndex) *Job {
 	// ID Format: [Epoch]_[ID]
 	id := fmt.Sprintf("%d_%d", time.Now().Unix(), time.Now().UnixNano()%1000)
 	if workers <= 0 {
 		workers = 10
 	}
+	if hitRate <= 0 {
+		hitRate = 10 // Default 10 req/s
+	}
 	ctx, cancel := context.WithCancel(context.Background())
+	
+	var ticker *time.Ticker
+	if hitRate > 0 {
+		ticker = time.NewTicker(time.Second / time.Duration(hitRate))
+	}
+
 	return &Job{
-		ID:           id,
-		OriginURL:    origin,
-		Depth:        depth,
-		MaxWorkers:   workers,
-		Status:       StatusRunning,
-		StartTime:    time.Now(),
-		FileIndex:    fi,
-		CrawledCount: 0,
-		ErrorCount:   0,
-		TotalFound:   1, // The origin URL
-		visitedFile:  "visited_urls.data",
-		visited:      make(map[string]bool),
-		semaphore:    make(chan struct{}, workers),
-		ctx:          ctx,
-		cancel:       cancel,
+		ID:            id,
+		OriginURL:     origin,
+		Depth:         depth,
+		MaxWorkers:    workers,
+		HitRate:       hitRate,
+		QueueCapacity: queueCap,
+		MaxURLs:       maxURLs,
+		Status:        StatusRunning,
+		StartTime:     time.Now(),
+		FileIndex:     fi,
+		CrawledCount:  0,
+		ErrorCount:    0,
+		TotalFound:    1, // The origin URL
+		visitedFile:   "visited_urls.data",
+		visited:       make(map[string]bool),
+		semaphore:     make(chan struct{}, workers),
+		rateLimiter:   ticker,
+		ctx:           ctx,
+		cancel:        cancel,
 	}
 }
 
@@ -138,8 +155,14 @@ func (j *Job) crawl(u string, currentDepth int) {
 		return
 	}
 
-	// Thread-safe visited check
+	// Max URLs check
 	j.mu.Lock()
+	if j.MaxURLs > 0 && j.CrawledCount >= j.MaxURLs {
+		j.mu.Unlock()
+		return
+	}
+
+	// Thread-safe visited check
 	if j.visited[u] {
 		j.mu.Unlock()
 		return
@@ -156,6 +179,15 @@ func (j *Job) crawl(u string, currentDepth int) {
 		defer func() { <-j.semaphore }()
 	case <-j.ctx.Done():
 		return
+	}
+
+	// Rate limiting
+	if j.rateLimiter != nil {
+		select {
+		case <-j.rateLimiter.C:
+		case <-j.ctx.Done():
+			return
+		}
 	}
 
 	j.Log(fmt.Sprintf("Crawling %s at depth %d", u, currentDepth))
@@ -198,6 +230,13 @@ func (j *Job) crawl(u string, currentDepth int) {
 			}
 
 			j.mu.Lock()
+			// Queue Capacity Check
+			if j.QueueCapacity > 0 && (j.TotalFound-j.CrawledCount) >= j.QueueCapacity {
+				j.mu.Unlock()
+				// j.Log(fmt.Sprintf("Queue full (%d/%d), skipping link: %s", j.TotalFound-j.CrawledCount, j.QueueCapacity, link))
+				continue
+			}
+
 			if !j.visited[link] {
 				j.TotalFound++
 				j.wg.Add(1)

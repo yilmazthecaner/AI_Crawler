@@ -23,8 +23,8 @@ func NewJobManager(fi *index.FileIndex) *JobManager {
 	}
 }
 
-func (jm *JobManager) CreateJob(origin string, depth, workers int) *Job {
-	job := NewJob(origin, depth, workers, jm.FileIndex)
+func (jm *JobManager) CreateJob(origin string, depth, workers, hitRate, queueCap, maxURLs int) *Job {
+	job := NewJob(origin, depth, workers, hitRate, queueCap, maxURLs, jm.FileIndex)
 	jm.mu.Lock()
 	jm.Jobs[job.ID] = job
 	jm.mu.Unlock()

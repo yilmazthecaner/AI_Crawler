@@ -78,7 +78,16 @@ func (w *WebUI) handleCreateJob(rw http.ResponseWriter, r *http.Request) {
 	depth := 1
 	fmt.Sscanf(r.URL.Query().Get("depth"), "%d", &depth)
 	
-	job := w.Manager.CreateJob(origin, depth, 10)
+	hitRate := 10
+	fmt.Sscanf(r.URL.Query().Get("hitRate"), "%d", &hitRate)
+
+	queueCap := 0
+	fmt.Sscanf(r.URL.Query().Get("queueCap"), "%d", &queueCap)
+
+	maxURLs := 0
+	fmt.Sscanf(r.URL.Query().Get("maxURLs"), "%d", &maxURLs)
+	
+	job := w.Manager.CreateJob(origin, depth, 10, hitRate, queueCap, maxURLs)
 	job.Start()
 	json.NewEncoder(rw).Encode(job)
 }
@@ -116,146 +125,270 @@ const commonHead = `
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SpiderSearch</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <title>SpiderSearch | Premium Crawler</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #000000;
-            --accent: #0071e3;
-            --surface: rgba(28, 28, 30, 0.7);
-            --text: #f5f5f7;
-            --text-secondary: #86868b;
-            --glass: rgba(255, 255, 255, 0.04);
-            --border: rgba(255, 255, 255, 0.1);
+            --bg: #0b0b0d;
+            --surface: rgba(28, 28, 30, 0.6);
+            --surface-hover: rgba(44, 44, 46, 0.8);
+            --accent: #0a84ff;
+            --accent-gradient: linear-gradient(135deg, #0a84ff, #5e5ce6);
+            --text: #ffffff;
+            --text-secondary: #a1a1aa;
+            --border: rgba(255, 255, 255, 0.08);
+            --glass: blur(16px);
+            --error: #ff453a;
+            --success: #32d74b;
+            --warning: #ff9f0a;
         }
-        * { box-sizing: border-box; }
-        body { 
-            margin: 0; 
-            font-family: 'Inter', -apple-system, system-ui, sans-serif; 
-            background: var(--bg); 
-            color: var(--text); 
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            background-color: var(--bg);
+            background-image: 
+                radial-gradient(circle at 0% 0%, rgba(10, 132, 255, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 100% 100%, rgba(94, 92, 230, 0.05) 0%, transparent 50%);
+            background-attachment: fixed;
+            color: var(--text);
+            font-family: 'Inter', -apple-system, sans-serif;
             -webkit-font-smoothing: antialiased;
-            overflow-x: hidden;
+            line-height: 1.5;
         }
-        .container { max-width: 980px; margin: 0 auto; padding: 40px 20px; }
-        nav { 
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            background: rgba(0,0,0,0.8);
+
+        .container { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+
+        nav {
             position: sticky;
-            top: 0;
-            z-index: 100;
-            border-bottom: 0.5px solid var(--border);
-            padding: 15px 0;
+            top: 20px;
+            z-index: 1000;
             display: flex;
             justify-content: center;
-            gap: 40px;
+            gap: 8px;
+            margin-bottom: 40px;
         }
-        nav a { 
-            color: var(--text); 
-            text-decoration: none; 
-            font-size: 14px; 
-            font-weight: 400;
-            opacity: 0.8;
-            transition: opacity 0.2s;
-        }
-        nav a:hover { opacity: 1; }
-        
-        h1 { font-size: 48px; font-weight: 600; text-align: center; margin-bottom: 40px; letter-spacing: -0.02em; }
-        h2 { font-size: 24px; font-weight: 500; margin-top: 60px; margin-bottom: 20px; }
 
-        .glass-card {
+        nav a {
             background: var(--surface);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            backdrop-filter: var(--glass);
+            -webkit-backdrop-filter: var(--glass);
             border: 1px solid var(--border);
-            border-radius: 20px;
-            padding: 30px;
-            margin-bottom: 30px;
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 10px 20px;
+            border-radius: 100px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .glass-card:hover { transform: translateY(-5px); }
+
+        nav a:hover {
+            color: var(--text);
+            background: var(--surface-hover);
+            transform: translateY(-1px);
+        }
+
+        nav a.active {
+            background: var(--accent);
+            color: white;
+            border-color: transparent;
+            box-shadow: 0 4px 12px rgba(10, 132, 255, 0.3);
+        }
+
+        h1 {
+            font-size: 42px;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 30px;
+            letter-spacing: -0.04em;
+            background: linear-gradient(to bottom, #fff, #a1a1aa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            backdrop-filter: var(--glass);
+            -webkit-backdrop-filter: var(--glass);
+            border: 1px solid var(--border);
+            padding: 20px;
+            border-radius: 20px;
+            text-align: center;
+        }
+
+        .stat-value { font-size: 28px; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+        .stat-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; }
+
+        .card {
+            background: var(--surface);
+            backdrop-filter: var(--glass);
+            -webkit-backdrop-filter: var(--glass);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 32px;
+            margin-bottom: 32px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-group { margin-bottom: 16px; }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            margin-left: 4px;
+        }
 
         input {
             width: 100%;
-            background: rgba(255,255,255,0.05);
+            background: rgba(255, 255, 255, 0.05);
             border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 15px 20px;
+            border-radius: 14px;
+            padding: 14px 18px;
             color: white;
-            font-size: 16px;
-            margin-bottom: 20px;
-            outline: none;
-            transition: border-color 0.2s;
+            font-size: 15px;
+            font-family: inherit;
+            transition: all 0.2s;
         }
-        input:focus { border-color: var(--accent); }
+
+        input:focus {
+            outline: none;
+            border-color: var(--accent);
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 0 4px rgba(10, 132, 255, 0.1);
+        }
 
         button {
-            background: var(--accent);
+            background: var(--accent-gradient);
             color: white;
             border: none;
-            border-radius: 20px;
-            padding: 12px 28px;
-            font-size: 16px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: opacity 0.2s, transform 0.1s;
-        }
-        button:hover { opacity: 0.9; }
-        button:active { transform: scale(0.98); }
-
-        .job-item {
-            display: grid;
-            grid-template-columns: 1fr 320px 100px 80px 100px;
-            align-items: center;
-            padding: 20px;
-            border-bottom: 0.5px solid var(--border);
-            gap: 20px;
-        }
-        .job-item:last-child { border-bottom: none; }
-        .status-badge {
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            text-transform: uppercase;
+            border-radius: 14px;
+            padding: 14px 28px;
+            font-size: 15px;
             font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
-        .status-running { background: rgba(0, 113, 227, 0.1); color: #0071e3; }
-        .status-finished { background: rgba(52, 199, 89, 0.1); color: #34c759; }
-        .status-error { background: rgba(255, 59, 48, 0.1); color: #ff3b30; }
-        .status-cancelled { background: rgba(255, 159, 10, 0.1); color: #ff9f0a; }
 
-        .log-container {
+        button:hover {
+            transform: translateY(-1px);
+            opacity: 0.9;
+            box-shadow: 0 4px 15px rgba(10, 132, 255, 0.4);
+        }
+
+        button:active { transform: translateY(0); }
+
+        button.secondary {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        button.danger {
+            background: rgba(255, 69, 58, 0.1);
+            color: var(--error);
+            border: 1px solid rgba(255, 69, 58, 0.2);
+        }
+        button.danger:hover {
+            background: var(--error);
+            color: white;
+            box-shadow: 0 4px 15px rgba(255, 69, 58, 0.4);
+        }
+
+        .job-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 24px;
+            margin-bottom: 16px;
+            display: grid;
+            grid-template-columns: 1fr auto auto auto;
+            align-items: center;
+            gap: 32px;
+            transition: all 0.3s;
+        }
+        .job-card:hover {
+            background: var(--surface-hover);
+            border-color: rgba(255,255,255,0.15);
+        }
+
+        .url-text {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .meta-text { font-size: 12px; color: var(--text-secondary); }
+
+        .badge {
+            padding: 6px 14px;
+            border-radius: 100px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+        .badge-running { background: rgba(10, 132, 255, 0.15); color: var(--accent); }
+        .badge-finished { background: rgba(50, 215, 75, 0.15); color: var(--success); }
+        .badge-error { background: rgba(255, 69, 58, 0.15); color: var(--error); }
+        .badge-cancelled { background: rgba(161, 161, 170, 0.15); color: var(--text-secondary); }
+
+        .log-console {
             background: #000;
-            border-radius: 12px;
+            border-radius: 16px;
             padding: 20px;
-            height: 400px;
+            height: 450px;
             overflow-y: auto;
             font-family: 'SF Mono', 'Menlo', monospace;
             font-size: 13px;
             line-height: 1.6;
-            color: #00ff41;
+            color: #d1d1d6;
+            border: 1px solid var(--border);
         }
-        .stat-box { display: flex; flex-direction: column; min-width: 60px; }
-        .stat-val { font-size: 16px; font-weight: 600; color: var(--text); }
-        .stat-lbl { font-size: 10px; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.05em; margin-top: 2px; }
-        
-        .result-card {
-            padding: 20px;
-            border-bottom: 0.5px solid var(--border);
-            transition: background 0.2s;
+        .log-entry { margin-bottom: 4px; }
+        .log-timestamp { color: var(--text-secondary); margin-right: 8px; }
+
+        .search-result {
+            padding: 24px;
+            border-bottom: 1px solid var(--border);
+            transition: all 0.2s;
         }
-        .result-card:hover { background: rgba(255,255,255,0.02); }
-        .result-card a { color: var(--accent); text-decoration: none; font-size: 18px; font-weight: 500; }
-        .result-meta { color: var(--text-secondary); font-size: 13px; margin-top: 5px; }
+        .search-result:last-child { border-bottom: none; }
+        .search-result:hover { background: rgba(255,255,255,0.02); }
+        .search-result-url { color: var(--accent); font-size: 18px; font-weight: 600; text-decoration: none; display: block; margin-bottom: 8px; }
+        .search-result-url:hover { text-decoration: underline; }
+        .search-result-meta { font-size: 13px; color: var(--text-secondary); display: flex; gap: 16px; }
+        .search-result-meta b { color: var(--text); }
     </style>
 </head>
 `
 
 const nav = `
 <nav>
-    <a href="/">Crawler</a>
-    <a href="/search">Search Discovery</a>
+    <a href="/" id="nav-crawler">Spider Intelligence</a>
+    <a href="/search" id="nav-discovery">Global Discovery</a>
 </nav>
 `
 
@@ -263,106 +396,156 @@ const crawlerHTML = `
 <!DOCTYPE html>
 <html>` + commonHead + `<body>` + nav + `
     <div class="container">
-        <h1>SpiderSearch</h1>
-        <div class="glass-card">
-            <h2 style="margin-top: 0; margin-bottom: 25px;">Create New Job</h2>
-            <div style="display: grid; grid-template-columns: 1fr 120px 140px; gap: 20px; align-items: end;">
-                <div>
-                    <label style="display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">Origin URL</label>
-                    <input type="text" id="origin" placeholder="https://..." style="margin-bottom: 0;">
-                </div>
-                <div>
-                    <label style="display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">Depth</label>
-                    <input type="number" id="depth" value="1" style="margin-bottom: 0;">
-                </div>
-                <div>
-                    <button onclick="createJob()" style="width: 100%; height: 50px; border-radius: 12px; font-weight: 600;">Start Crawl</button>
-                </div>
+        <h1 style="margin-bottom: 10px;">🕷️ SpiderSearch</h1>
+        <p style="text-align: center; color: var(--text-secondary); margin-bottom: 40px; font-size: 15px;">Advanced Distributed Crawler Engine</p>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="stat-visited">0</div>
+                <div class="stat-label">URLs Visited</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-active">0</div>
+                <div class="stat-label">Active crawlers</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-total">0</div>
+                <div class="stat-label">Total Jobs</div>
             </div>
         </div>
 
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 40px; margin-bottom: 20px;">
-            <h2 style="margin: 0;">Active & History</h2>
-            <button onclick="clearHistory()" class="secondary" style="height: 36px; padding: 0 15px; font-size: 13px; border-radius: 8px; background: rgba(255,59,48,0.1); border-color: rgba(255,59,48,0.2); color: #ff453a;">Clear All History</button>
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
+                <h2 style="font-size: 20px; font-weight: 600;">🚀 Create New Crawler</h2>
+                <div style="display: flex; gap: 8px;">
+                     <button onclick="clearHistory()" class="danger" style="padding: 8px 16px; font-size: 12px; border-radius: 10px;">Clear All Data</button>
+                </div>
+            </div>
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Origin URL</label>
+                    <input type="text" id="origin" placeholder="https://www.example.com">
+                </div>
+                <div class="form-group">
+                    <label>Depth (k)</label>
+                    <input type="number" id="depth" value="2" min="1" max="10">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 24px;">
+                <div class="form-group">
+                    <label>Hit Rate (/sec)</label>
+                    <input type="number" id="hitRate" value="5" min="1">
+                    <p style="font-size: 11px; color: var(--text-secondary); margin-top: 6px;">Request rate limiting (Back pressure)</p>
+                </div>
+                <div class="form-group">
+                    <label>Queue Capacity</label>
+                    <input type="number" id="queueCap" value="1000" min="0">
+                    <p style="font-size: 11px; color: var(--text-secondary); margin-top: 6px;">0 for unlimited</p>
+                </div>
+                <div class="form-group">
+                    <label>Max URLs to Visit</label>
+                    <input type="number" id="maxURLs" value="100" min="1">
+                    <p style="font-size: 11px; color: var(--text-secondary); margin-top: 6px;">Hard stop after N pages</p>
+                </div>
+            </div>
+
+            <button onclick="createJob()" style="width: 100%; height: 54px; font-size: 16px;">
+                Initialize Neural Crawl Sequence
+            </button>
         </div>
-        <div id="jobList" class="glass-card" style="padding: 0"></div>
+
+        <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 20px; margin-left: 4px;">Recent Sequences</h2>
+        <div id="jobList"></div>
     </div>
+
     <script>
+        document.getElementById('nav-crawler').classList.add('active');
+
+        async function createJob() {
+            const btn = event.target;
+            const originalText = btn.innerText;
+            btn.innerText = 'Initializing...';
+            btn.disabled = true;
+
+            const params = new URLSearchParams({
+                origin: document.getElementById('origin').value,
+                depth: document.getElementById('depth').value,
+                hitRate: document.getElementById('hitRate').value,
+                queueCap: document.getElementById('queueCap').value,
+                maxURLs: document.getElementById('maxURLs').value
+            });
+
+            try {
+                const r = await fetch('/api/create?' + params.toString());
+                if (r.ok) {
+                    document.getElementById('origin').value = '';
+                    await loadJobs();
+                }
+            } finally {
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        }
+
         async function cancelJob(id) {
-            if(!confirm('Stop this job?')) return;
+            if(!confirm('Terminate this crawl sequence?')) return;
             await fetch('/api/cancel?id=' + id);
             loadJobs();
         }
+
         async function clearHistory() {
-            if(!confirm('Are you sure you want to clear all history? This will also delete all .data files.')) return;
+            if(!confirm('ERASE ALL DATA? This cannot be undone.')) return;
             await fetch('/api/clear');
             loadJobs();
         }
-        async function createJob() {
-            const o = document.getElementById('origin').value;
-            const d = document.getElementById('depth').value;
-            if(!o) return;
-            await fetch('/api/create?origin=' + encodeURIComponent(o) + '&depth=' + d);
-            loadJobs();
-        }
+
         async function loadJobs() {
             const r = await fetch('/api/jobs');
             const jobs = await r.json();
-            const container = document.getElementById('jobList');
-            container.innerHTML = jobs.length ? '' : '<div style="padding: 40px; text-align: center; color: var(--text-secondary)">No jobs yet.</div>';
-            jobs.forEach(j => {
-                const div = document.createElement('div');
-                div.className = 'job-item';
-                
-                const startTime = new Date(j.start_time);
-                let elapsed = 0;
-                if (j.status !== 'running') {
-                    elapsed = j.duration;
-                } else {
-                    elapsed = Math.floor((new Date() - startTime) / 1000);
-                }
-                const queued = j.total_found - j.crawled_count;
-                
-                div.innerHTML = ` + "`" + `
-                    <div style="min-width: 0">
-                        <div style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${j.origin_url}</div>
-                        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">ID: ${j.id} • Started: ${startTime.toLocaleTimeString()}</div>
-                    </div>
+            
+            const list = document.getElementById('jobList');
+            const stats = { visited: 0, active: 0, total: jobs.length };
+
+            if (!jobs.length) {
+                list.innerHTML = '<div style="text-align: center; padding: 60px; color: var(--text-secondary); background: var(--surface); border-radius: 24px; border: 1px dashed var(--border);">No crawl sequences detected in history.</div>';
+            } else {
+                list.innerHTML = jobs.map(j => {
+                    stats.visited += j.crawled_count;
+                    if (j.status === 'running') stats.active++;
                     
-                    <div style="display: flex; gap: 30px; justify-content: center; text-align: center;">
-                        <div class="stat-box">
-                            <div class="stat-val">${j.crawled_count}</div>
-                            <div class="stat-lbl">Crawled</div>
-                        </div>
-                        <div class="stat-box">
-                            <div class="stat-val">${queued > 0 ? queued : 0}</div>
-                            <div class="stat-lbl">Queued</div>
-                        </div>
-                        <div class="stat-box">
-                            <div class="stat-val" style="color: ${j.error_count > 0 ? '#ff3b30' : 'inherit'}">${j.error_count}</div>
-                            <div class="stat-lbl">Errors</div>
-                        </div>
-                        <div class="stat-box">
-                            <div class="stat-val">${elapsed}s</div>
-                            <div class="stat-lbl">Elapsed</div>
-                        </div>
-                    </div>
+                    const percent = j.max_urls > 0 ? Math.min(100, Math.round((j.crawled_count / j.max_urls) * 100)) : 0;
+                    
+                    return ` + "`" + `
+                        <div class="job-card" onclick="window.location.href='/status/${j.id}'" style="cursor: pointer">
+                            <div>
+                                <div class="url-text">${j.origin_url}</div>
+                                <div class="meta-text">ID: ${j.id} • ${new Date(j.start_time).toLocaleString()}</div>
+                            </div>
+                            
+                            <div style="text-align: center">
+                                <div style="font-size: 20px; font-weight: 700;">${j.crawled_count}</div>
+                                <div class="meta-text">VISITED</div>
+                            </div>
 
-                    <div style="text-align: center">
-                        <span class="status-badge status-${j.status}" style="display: inline-block; min-width: 80px;">${j.status}</span>
-                    </div>
+                            <div style="width: 100px; text-align: center;">
+                                <span class="badge badge-${j.status}">${j.status}</span>
+                            </div>
 
-                    <div style="text-align: center">
-                        ${j.status === 'running' ? ` + "`" + `<button onclick="cancelJob('${j.id}')" style="background: rgba(255,59,48,0.1); color: #ff3b30; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; width: 100%;">Cancel</button>` + "`" + ` : ''}
-                    </div>
+                            <div style="display: flex; gap: 8px;">
+                                ${j.status === 'running' ? ` + "`" + `<button onclick="event.stopPropagation(); cancelJob('${j.id}')" class="danger" style="padding: 8px 16px; font-size: 11px;">Stop</button>` + "`" + ` : '<span style="color: var(--text-secondary); font-size: 13px;">View Results →</span>'}
+                            </div>
+                        </div>
+                    ` + "`" + `;
+                }).join('');
+            }
 
-                    <div style="text-align: right">
-                        <a href="/status/${j.id}" style="color: var(--accent); text-decoration: none; font-size: 14px; white-space: nowrap;">View Logs →</a>
-                    </div>
-                ` + "`" + `;
-                container.appendChild(div);
-            });
+            document.getElementById('stat-visited').innerText = stats.visited.toLocaleString();
+            document.getElementById('stat-active').innerText = stats.active;
+            document.getElementById('stat-total').innerText = stats.total;
         }
+
         setInterval(loadJobs, 2000);
         loadJobs();
     </script>
@@ -372,36 +555,64 @@ const crawlerHTML = `
 const statusHTML = `
 <!DOCTYPE html>
 <html>` + commonHead + `<body>` + nav + `
-    <div class="container">
-        <h1 id="jobTitle">Job Status</h1>
-        <div class="glass-card">
-            <div id="statusInfo"></div>
-            <div id="logs" class="log-container" style="margin-top: 20px"></div>
+    <div class="container" id="status-container">
+        <div style="margin-bottom: 30px; display: flex; align-items: center; gap: 16px;">
+            <a href="/" style="text-decoration: none; color: var(--text-secondary); font-size: 24px;">←</a>
+            <h1 style="margin-bottom: 0; text-align: left;" id="job-title">Crawl Sequence</h1>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="s-visited">0</div>
+                <div class="stat-label">URLs Visited</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="s-queued">0</div>
+                <div class="stat-label">In Queue</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="s-errors">0</div>
+                <div class="stat-label">Errors</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="s-status">-</div>
+                <div class="stat-label">Status</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 style="font-size: 18px; margin-bottom: 20px;">Telemetry Logs</h2>
+            <div id="logs" class="log-console"></div>
         </div>
     </div>
+
     <script>
         const id = window.location.pathname.split('/').pop();
+        
         async function poll() {
             const r = await fetch('/api/status/' + id);
-            const job = await r.json();
-            if (!job) return;
+            const j = await r.json();
+            if (!j) return;
             
-            document.getElementById('jobTitle').innerText = job.origin_url.split('://')[1];
-            document.getElementById('statusInfo').innerHTML = ` + "`" + `
-                <div style="display: flex; justify-content: space-between; align-items: center">
-                    <div>
-                        <div style="font-size: 14px; color: var(--text-secondary)">JOB ID</div>
-                        <div style="font-size: 18px; font-weight: 600">${job.id}</div>
-                    </div>
-                    <span class="status-badge status-${job.status}">${job.status}</span>
-                </div>
-            ` + "`" + `;
+            document.getElementById('job-title').innerText = j.origin_url.split('://')[1];
+            document.getElementById('s-visited').innerText = j.crawled_count;
+            document.getElementById('s-queued').innerText = (j.total_found - j.crawled_count);
+            document.getElementById('s-errors').innerText = j.error_count;
+            document.getElementById('s-status').innerText = j.status.toUpperCase();
             
             const logBox = document.getElementById('logs');
-            logBox.innerHTML = job.logs.map(l => ` + "`" + `<div>${l}</div>` + "`" + `).join('');
-            logBox.scrollTop = logBox.scrollHeight;
+            const atBottom = logBox.scrollHeight - logBox.scrollTop <= logBox.clientHeight + 50;
             
-            if (job.status === 'running') setTimeout(poll, 1000);
+            logBox.innerHTML = j.logs.map(l => {
+                const parts = l.split('] ');
+                const ts = parts[0].replace('[', '');
+                const msg = parts.slice(1).join('] ');
+                return ` + "`" + `<div class="log-entry"><span class="log-timestamp">${ts}</span> ${msg}</div>` + "`" + `;
+            }).join('');
+            
+            if (atBottom) logBox.scrollTop = logBox.scrollHeight;
+            
+            if (j.status === 'running') setTimeout(poll, 1000);
         }
         poll();
     </script>
@@ -413,21 +624,31 @@ const searchHTML = `
 <html>` + commonHead + `<body>` + nav + `
     <div class="container">
         <h1>Global Discovery</h1>
-        <div class="glass-card">
-            <div style="display: flex; gap: 15px">
-                <input type="text" id="q" placeholder="Search keywords..." onkeypress="if(event.key==='Enter') doSearch()" style="margin-bottom: 0">
-                <button onclick="doSearch()">Search</button>
+        <p style="text-align: center; color: var(--text-secondary); margin-bottom: 40px; font-size: 15px;">Search through indices discovered by the swarm</p>
+
+        <div class="card" style="padding: 12px; border-radius: 100px; margin-bottom: 40px;">
+            <div style="display: flex; gap: 12px; padding: 4px;">
+                <input type="text" id="q" placeholder="Enter search keywords or neural intent..." onkeypress="if(event.key==='Enter') doSearch()" style="border-radius: 100px; padding: 16px 32px; background: transparent; border: none; font-size: 18px;">
+                <button onclick="doSearch()" style="border-radius: 100px; padding: 0 40px;">Search</button>
             </div>
         </div>
-        <div id="results" class="glass-card" style="padding: 0; display: none;"></div>
+
+        <div id="results-count" style="margin-bottom: 16px; margin-left: 8px; font-size: 14px; color: var(--text-secondary); display: none;"></div>
+        <div id="results" class="card" style="padding: 0; display: none; overflow: hidden;"></div>
     </div>
+
     <script>
+        document.getElementById('nav-discovery').classList.add('active');
+
         async function doSearch() {
             const q = document.getElementById('q').value;
             if(!q) return;
+            
             const container = document.getElementById('results');
+            const countLabel = document.getElementById('results-count');
+            
             container.style.display = 'block';
-            container.innerHTML = '<div style="padding: 40px; text-align: center; color: var(--text-secondary)">Searching the filesystem database...</div>';
+            container.innerHTML = '<div style="padding: 80px; text-align: center;"><div style="color: var(--accent); margin-bottom: 16px; font-weight: 600;">ACCESSING DISTRIBUTED DATABASE...</div><div style="font-size: 13px; color: var(--text-secondary);">Querying memory nodes and disk indices</div></div>';
             
             try {
                 const r = await fetch('/api/search?q=' + encodeURIComponent(q));
@@ -435,32 +656,36 @@ const searchHTML = `
                 container.innerHTML = '';
                 
                 if (!data || data.length === 0) {
+                    countLabel.style.display = 'none';
                     container.innerHTML = ` + "`" + `
-                        <div style="padding: 60px 40px; text-align: center;">
-                            <div style="font-size: 48px; margin-bottom: 20px;">🔍</div>
-                            <div style="font-size: 20px; font-weight: 500; color: var(--text);">No results found for "${q}"</div>
-                            <div style="color: var(--text-secondary); margin-top: 10px;">Try different keywords or check if the crawler job is finished.</div>
+                        <div style="padding: 80px 40px; text-align: center;">
+                            <div style="font-size: 48px; margin-bottom: 24px;">📡</div>
+                            <div style="font-size: 22px; font-weight: 600; color: var(--text);">No matching signals found</div>
+                            <div style="color: var(--text-secondary); margin-top: 12px; max-width: 400px; margin-left: auto; margin-right: auto;">The search query "${q}" did not return any results from the current index. Try reducing depth or expanding origin URLs.</div>
                         </div>
                     ` + "`" + `;
                     return;
                 }
                 
                 data.sort((a,b) => b.relevance - a.relevance);
+                countLabel.innerText = data.length + ' indexed pages relevant to your query';
+                countLabel.style.display = 'block';
+
                 data.forEach(res => {
                     const div = document.createElement('div');
-                    div.className = 'result-card';
+                    div.className = 'search-result';
                     div.innerHTML = ` + "`" + `
-                        <a href="${res.url}" target="_blank">${res.url}</a>
-                        <div class="result-meta">
-                            Score: <strong>${Math.round(res.relevance)}</strong> • 
-                            Origin: ${res.origin_url} • 
-                            Depth: ${res.depth}
+                        <a href="${res.url}" target="_blank" class="search-result-url">${res.url}</a>
+                        <div class="search-result-meta">
+                            <div>Score: <b>${Math.round(res.relevance)}</b></div>
+                            <div>Depth: <b>${res.depth}</b></div>
+                            <div style="opacity: 0.6">Discovery Origin: <b>${new URL(res.origin_url).hostname}</b></div>
                         </div>
                     ` + "`" + `;
                     container.appendChild(div);
                 });
             } catch (e) {
-                container.innerHTML = '<div style="padding: 40px; text-align: center; color: #ff3b30">Error connecting to the search API.</div>';
+                container.innerHTML = '<div style="padding: 40px; text-align: center; color: var(--error)">DATABASE CONNECTION LOST: Unable to fetch neural index signals.</div>';
             }
         }
     </script>

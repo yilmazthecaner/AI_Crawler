@@ -3,42 +3,28 @@
 SpiderSearch is a high-performance, concurrent web crawler and real-time search engine built in Go.
 
 ## Features
-- **Concurrent Indexed Crawling**: Efficient recursion with thread-safe visited checks.
-- **Back-Pressure Management**: Controlled worker pool via semaphores.
-- **Real-Time Search**: Query the index while the crawler is still active.
-- **Heuristic Ranking**: Results ranked by keyword frequency and title relevance.
-- **Live Dashboard**: CLI monitor for processed vs. queued URLs and active workers.
+- **Deterministic Crawling**: Precise depth control (`k`) and hop tracing.
+- **Advanced Back-Pressure**: Configurable hit rates (req/s), queue capacities, and worker limits.
+- **Real-Time Search Discovery**: Search through discovered indices instantly while the swarm is still active.
+- **Premium Glassmorphism UI**: High-end Web interface with real-time telemetry and log streaming.
+- **Persistence & Resume**: Automatically saves state to disk, allowing sequences to be viewed or resumed after restart.
 
 ## Architecture
 - **Language**: Go 1.21+
-- **Native Implementation**: Strictly uses `net/http`, `sync`, and `regexp` (No external libraries like Scrapy or BeautifulSoup).
-- **Concurrency primitives**: Channels, Mutexes, and `sync.WaitGroup` for robust synchronization.
+- **Native Implementation**: Strictly uses standard library components.
+- **Storage**: Custom in-memory inverted index with segmented disk persistence (partitioned by characters).
 
 ## Getting Started
-
-### Prerequisites
-- Go 1.21+ installed.
 
 ### Installation
 ```bash
 go mod tidy
-go build -o spidersearch .
+go run main.go
 ```
 
 ### Usage
-```bash
-./spidersearch -origin https://go.dev -depth 2 -workers 10
-```
-
-### Search Prompt
-Once the application starts, you can type queries directly:
-```bash
-SpiderSearch > golang
-SpiderSearch > documentation
-```
-Type `exit` or `quit` to stop the session.
-
-## Configuration Flags
-- `-origin`: The starting URL for the crawl (default: `https://go.dev`).
-- `-depth`: Max hops from the origin (default: `2`).
-- `-workers`: Max concurrent crawl routines (default: `10`).
+1. Open `http://localhost:8080` in your browser.
+2. Enter an **Origin URL** and **Depth**.
+3. Configure **Back Pressure** settings (Hit Rate, Queue Cap).
+4. Start the crawl and monitor live logs in the Status view.
+5. Use the **Global Discovery** tab to search in real-time.
