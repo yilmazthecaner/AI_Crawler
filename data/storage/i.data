@@ -1,0 +1,8 @@
+in http://localhost:3600/fixture/start http://localhost:3600/fixture/start 0 1
+is http://localhost:3600/fixture/start http://localhost:3600/fixture/start 0 1
+indexing http://localhost:3600/fixture/program-patterns http://localhost:3600/fixture/start 1 1
+inspect http://localhost:3600/fixture/program-patterns http://localhost:3600/fixture/start 1 1
+influence http://localhost:3600/fixture/page-signals http://localhost:3600/fixture/start 1 1
+intentionally http://localhost:3600/fixture/page-signals http://localhost:3600/fixture/start 1 1
+indexing http://localhost:3600/fixture/pipeline-notes http://localhost:3600/fixture/start 2 1
+is http://localhost:3600/fixture/pipeline-notes http://localhost:3600/fixture/start 2 2

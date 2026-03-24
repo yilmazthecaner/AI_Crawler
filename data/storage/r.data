@@ -1,0 +1,9 @@
+ranking http://localhost:3600/fixture/start http://localhost:3600/fixture/start 0 1
+review http://localhost:3600/fixture/start http://localhost:3600/fixture/start 0 1
+references http://localhost:3600/fixture/python-basics http://localhost:3600/fixture/start 1 1
+repeated http://localhost:3600/fixture/python-basics http://localhost:3600/fixture/start 1 1
+ranking http://localhost:3600/fixture/page-signals http://localhost:3600/fixture/start 1 1
+recall http://localhost:3600/fixture/page-signals http://localhost:3600/fixture/start 1 1
+relevance http://localhost:3600/fixture/page-signals http://localhost:3600/fixture/start 1 1
+repeatedly http://localhost:3600/fixture/page-signals http://localhost:3600/fixture/start 1 1
+results http://localhost:3600/fixture/pipeline-notes http://localhost:3600/fixture/start 2 1

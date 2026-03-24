@@ -1,0 +1,14 @@
+and http://localhost:3600/fixture/start http://localhost:3600/fixture/start 0 2
+assignment http://localhost:3600/fixture/start http://localhost:3600/fixture/start 0 1
+and http://localhost:3600/fixture/program-patterns http://localhost:3600/fixture/start 1 1
+also http://localhost:3600/fixture/python-basics http://localhost:3600/fixture/start 1 1
+and http://localhost:3600/fixture/python-basics http://localhost:3600/fixture/start 1 2
+appear http://localhost:3600/fixture/python-basics http://localhost:3600/fixture/start 1 1
+about http://localhost:3600/fixture/page-signals http://localhost:3600/fixture/start 1 1
+adds http://localhost:3600/fixture/page-signals http://localhost:3600/fixture/start 1 1
+and http://localhost:3600/fixture/page-signals http://localhost:3600/fixture/start 1 1
+appears http://localhost:3600/fixture/page-signals http://localhost:3600/fixture/start 1 1
+are http://localhost:3600/fixture/page-signals http://localhost:3600/fixture/start 1 1
+active http://localhost:3600/fixture/pipeline-notes http://localhost:3600/fixture/start 2 1
+again http://localhost:3600/fixture/pipeline-notes http://localhost:3600/fixture/start 2 1
+and http://localhost:3600/fixture/pipeline-notes http://localhost:3600/fixture/start 2 1

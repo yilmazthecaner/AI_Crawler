@@ -1,41 +1,66 @@
 # Product Requirement Document (PRD): SpiderSearch
 
-## 1. Project Overview
-SpiderSearch is a high-performance, single-machine web crawler and real-time search engine. It aims to demonstrate efficient concurrency management, architectural sensibility, and real-time data processing without relying on high-level libraries.
+## 1. Goal
+Build a localhost-runnable crawler and search system that demonstrates:
+- `index(origin, k)` style crawling
+- live `search(query)` while indexing is active
+- visibility into queue depth and back-pressure state
+- simple persistence on a single machine
 
-## 2. Core Functionalities
+## 2. Product Surface
+- Crawler page: create jobs and review recent runs
+- Status page: inspect logs, queue depth, worker activity, and back pressure
+- Search page: query indexed pages by term
+- Quiz answer document: a checked-in text artifact derived from real crawl data
+- Fixture pages: deterministic local pages for repeatable crawling
 
-### 2.1 The Indexer (Crawler)
-- **Recursive Depth Crawling**: Crawls from an `origin` URL up to `k` hops.
-- **Uniqueness Guarantee**: Implements a thread-safe "Visited" set to avoid redundant work and cycles.
-- **Back-Pressure Management**: 
-    - **Worker Semaphore**: Limits concurrent fetch routines.
-    - **Hit Rate Limiting**: Token-bucket style rate limiting (req/s) to respect target server load.
-    - **Queue Capacity**: Hard limit on the internal URL backlog to manage memory usage.
-    - **Max URL Stop**: Global constraint to prevent infinite crawls.
-- **Raw Implementation**: Uses `net/http` and `os/exec` (curl) for fetching, and standard `regexp` for parsing, avoiding high-level crawling libraries.
+## 3. Functional Requirements
 
-### 2.2 The Searcher
-- **Live Querying**: Search engine functional *while* crawling is in progress.
-- **Result Triples**: Returns `(relevant_url, origin_url, depth)`.
-- **Thread Safety**: Uses concurrent-safe data structures (Mutexes, Channels) to allow simultaneous Read/Write.
-- **Relevancy Ranking**: Heuristic-based ranking (e.g., term frequency, title matches).
+### 3.1 Index
+- Accept an `origin` URL and depth `k`
+- Crawl up to `k` hops from the origin
+- Never schedule the same URL twice
+- Resolve both absolute and relative links
+- Support back pressure with:
+  - max concurrent workers
+  - request hit-rate throttling
+  - queue capacity
+  - max URLs per job
+- Persist job state and visited URLs to disk
 
-### 2.3 System Visibility
-- **Dashboard**: Real-time CLI or Web UI tracking:
-    - Progress (Processed vs. Queued URLs)
-    - Queue Depth
-    - Throttling/Back-pressure status
+### 3.2 Search
+- Accept `query` and return relevant indexed URLs
+- Return the relevant page URL with its `origin_url` and `depth`
+- Work while indexing is still running
+- Rank with a deterministic formula:
 
-### 2.4 Persistence
-- **Pause/Resume**: Capability to save state and resume indexing after interruption.
+```text
+(frequency * 10) + 1000 - (depth * 5)
+```
 
-## 3. Technical Constraints
-- **Language**: Go (Golang) for its robust concurrency primitives.
-- **No Heavy Libraries**: No Scrapy, BeautifulSoup, or external databases.
-- **Single Machine**: Optimized for performance on a single host.
+### 3.3 Storage
+- Store raw term entries in `data/storage/*.data`
+- Use one file per leading character
+- Store each record as:
 
-## 4. Success Criteria
-- Successful recursive crawl to depth `k`.
-- Search results reflect newly crawled pages within seconds.
-- System handles 100+ concurrent requests/crawls without crashing.
+```text
+word url origin depth frequency
+```
+
+### 3.4 Observability
+- Show per-job logs
+- Show queue depth
+- Show active workers
+- Show whether back pressure is active
+
+## 4. API Endpoints
+- `GET /index?origin=<url>&k=<depth>`
+- `GET /search?query=<text>&sortBy=relevance`
+- `GET /api/status/<job_id>`
+- `GET /api/jobs`
+
+## 5. Constraints
+- Go standard library first
+- No external database required
+- Localhost runnable
+- Single-machine design, but structured for future migration to shared queues and distributed storage

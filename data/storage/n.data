@@ -1,0 +1,5 @@
+notes http://localhost:3600/fixture/start http://localhost:3600/fixture/start 0 1
+notes http://localhost:3600/fixture/program-patterns http://localhost:3600/fixture/start 1 1
+notes http://localhost:3600/fixture/python-basics http://localhost:3600/fixture/start 1 1
+notes http://localhost:3600/fixture/page-signals http://localhost:3600/fixture/start 1 1
+notes http://localhost:3600/fixture/pipeline-notes http://localhost:3600/fixture/start 2 3

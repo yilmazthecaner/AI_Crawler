@@ -1,0 +1,10 @@
+crawl http://localhost:3600/fixture/start http://localhost:3600/fixture/start 0 3
+crawler http://localhost:3600/fixture/start http://localhost:3600/fixture/start 0 1
+crawl http://localhost:3600/fixture/program-patterns http://localhost:3600/fixture/start 1 1
+crawler http://localhost:3600/fixture/program-patterns http://localhost:3600/fixture/start 1 1
+can http://localhost:3600/fixture/python-basics http://localhost:3600/fixture/start 1 1
+crawler http://localhost:3600/fixture/python-basics http://localhost:3600/fixture/start 1 1
+clearly http://localhost:3600/fixture/page-signals http://localhost:3600/fixture/start 1 1
+can http://localhost:3600/fixture/pipeline-notes http://localhost:3600/fixture/start 2 1
+contribute http://localhost:3600/fixture/pipeline-notes http://localhost:3600/fixture/start 2 1
+crawler http://localhost:3600/fixture/pipeline-notes http://localhost:3600/fixture/start 2 1

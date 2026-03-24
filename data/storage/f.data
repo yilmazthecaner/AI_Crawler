@@ -1,0 +1,8 @@
+fixture http://localhost:3600/fixture/start http://localhost:3600/fixture/start 0 3
+fixture http://localhost:3600/fixture/program-patterns http://localhost:3600/fixture/start 1 1
+for http://localhost:3600/fixture/program-patterns http://localhost:3600/fixture/start 1 3
+fixture http://localhost:3600/fixture/python-basics http://localhost:3600/fixture/start 1 2
+functions http://localhost:3600/fixture/python-basics http://localhost:3600/fixture/start 1 1
+fixture http://localhost:3600/fixture/page-signals http://localhost:3600/fixture/start 1 1
+for http://localhost:3600/fixture/page-signals http://localhost:3600/fixture/start 1 2
+frequency http://localhost:3600/fixture/page-signals http://localhost:3600/fixture/start 1 1

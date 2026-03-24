@@ -1,3 +1,2 @@
-storage/*.data
-visited_urls.data
 spidersearch
+.DS_Store

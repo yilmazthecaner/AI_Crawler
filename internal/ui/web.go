@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"spidersearch/internal/crawler"
 	"spidersearch/internal/index"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -26,11 +28,15 @@ func NewWebUI(jm *crawler.JobManager, fi *index.FileIndex, port int) *WebUI {
 
 func (w *WebUI) Start() error {
 	http.HandleFunc("/", w.handleCrawlerPage)
+	http.HandleFunc("/index", w.handleCreateJob)
 	http.HandleFunc("/status/", w.handleStatusPage)
 	http.HandleFunc("/search", w.handleSearchPage)
-	
+	http.HandleFunc("/fixture/", w.handleFixturePage)
+	http.Handle("/raw/storage/", http.StripPrefix("/raw/storage/", http.FileServer(http.Dir(index.StorageDir))))
+
 	http.HandleFunc("/api/jobs", w.handleListJobs)
 	http.HandleFunc("/api/create", w.handleCreateJob)
+	http.HandleFunc("/api/index", w.handleCreateJob)
 	http.HandleFunc("/api/clear", w.handleClearHistory)
 	http.HandleFunc("/api/cancel", w.handleCancelJob)
 	http.HandleFunc("/api/status/", w.handleGetStatus)
@@ -41,6 +47,10 @@ func (w *WebUI) Start() error {
 }
 
 func (w *WebUI) handleCrawlerPage(rw http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(rw, r)
+		return
+	}
 	fmt.Fprint(rw, crawlerHTML)
 }
 
@@ -49,11 +59,16 @@ func (w *WebUI) handleStatusPage(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (w *WebUI) handleSearchPage(rw http.ResponseWriter, r *http.Request) {
+	if firstNonEmpty(r.URL.Query().Get("query"), r.URL.Query().Get("q")) != "" {
+		w.handleSearchAPI(rw, r)
+		return
+	}
 	fmt.Fprint(rw, searchHTML)
 }
 
 func (w *WebUI) handleListJobs(rw http.ResponseWriter, r *http.Request) {
 	jobs := w.Manager.ListJobs()
+	rw.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(rw).Encode(jobs)
 }
 
@@ -74,27 +89,32 @@ func (w *WebUI) handleCancelJob(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (w *WebUI) handleCreateJob(rw http.ResponseWriter, r *http.Request) {
-	origin := r.URL.Query().Get("origin")
-	depth := 1
-	fmt.Sscanf(r.URL.Query().Get("depth"), "%d", &depth)
-	
-	hitRate := 10
-	fmt.Sscanf(r.URL.Query().Get("hitRate"), "%d", &hitRate)
+	origin := strings.TrimSpace(r.URL.Query().Get("origin"))
+	depth := parseIntDefault(firstNonEmpty(r.URL.Query().Get("k"), r.URL.Query().Get("depth")), 1)
+	hitRate := parseIntDefault(r.URL.Query().Get("hitRate"), 10)
+	queueCap := parseIntDefault(r.URL.Query().Get("queueCap"), 0)
+	maxURLs := parseIntDefault(r.URL.Query().Get("maxURLs"), 0)
 
-	queueCap := 0
-	fmt.Sscanf(r.URL.Query().Get("queueCap"), "%d", &queueCap)
+	if origin == "" {
+		http.Error(rw, "origin is required", http.StatusBadRequest)
+		return
+	}
 
-	maxURLs := 0
-	fmt.Sscanf(r.URL.Query().Get("maxURLs"), "%d", &maxURLs)
-	
+	parsedURL, err := url.ParseRequestURI(origin)
+	if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
+		http.Error(rw, "origin must be a valid http(s) URL", http.StatusBadRequest)
+		return
+	}
+
 	job := w.Manager.CreateJob(origin, depth, 10, hitRate, queueCap, maxURLs)
 	job.Start()
+	rw.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(rw).Encode(job)
 }
 
 func (w *WebUI) handleGetStatus(rw http.ResponseWriter, r *http.Request) {
 	id := strings.TrimPrefix(r.URL.Path, "/api/status/")
-	
+
 	timeout := time.After(5 * time.Second)
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
@@ -116,9 +136,31 @@ func (w *WebUI) handleGetStatus(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (w *WebUI) handleSearchAPI(rw http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query().Get("q")
-	results := w.FileIndex.Search(query)
+	query := firstNonEmpty(r.URL.Query().Get("query"), r.URL.Query().Get("q"))
+	sortBy := firstNonEmpty(r.URL.Query().Get("sortBy"), "relevance")
+	results := w.FileIndex.Search(query, sortBy)
+	rw.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(rw).Encode(results)
+}
+
+func parseIntDefault(raw string, fallback int) int {
+	if strings.TrimSpace(raw) == "" {
+		return fallback
+	}
+	value, err := strconv.Atoi(raw)
+	if err != nil {
+		return fallback
+	}
+	return value
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 const commonHead = `
@@ -426,6 +468,7 @@ const crawlerHTML = `
                 <div class="form-group">
                     <label>Origin URL</label>
                     <input type="text" id="origin" placeholder="https://www.example.com">
+                    <p style="font-size: 11px; color: var(--text-secondary); margin-top: 6px;">Deterministic local demo: <code>http://localhost:3600/fixture/start</code></p>
                 </div>
                 <div class="form-group">
                     <label>Depth (k)</label>
@@ -478,7 +521,7 @@ const crawlerHTML = `
             });
 
             try {
-                const r = await fetch('/api/create?' + params.toString());
+                const r = await fetch('/index?' + params.toString());
                 if (r.ok) {
                     document.getElementById('origin').value = '';
                     await loadJobs();
@@ -568,11 +611,19 @@ const statusHTML = `
             </div>
             <div class="stat-card">
                 <div class="stat-value" id="s-queued">0</div>
-                <div class="stat-label">In Queue</div>
+                <div class="stat-label">Queue Depth</div>
             </div>
             <div class="stat-card">
                 <div class="stat-value" id="s-errors">0</div>
                 <div class="stat-label">Errors</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="s-workers">0</div>
+                <div class="stat-label">Active Workers</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="s-pressure">Off</div>
+                <div class="stat-label">Back Pressure</div>
             </div>
             <div class="stat-card">
                 <div class="stat-value" id="s-status">-</div>
@@ -596,8 +647,10 @@ const statusHTML = `
             
             document.getElementById('job-title').innerText = j.origin_url.split('://')[1];
             document.getElementById('s-visited').innerText = j.crawled_count;
-            document.getElementById('s-queued').innerText = (j.total_found - j.crawled_count);
+            document.getElementById('s-queued').innerText = (j.queue || []).length;
             document.getElementById('s-errors').innerText = j.error_count;
+            document.getElementById('s-workers').innerText = j.active_workers || 0;
+            document.getElementById('s-pressure').innerText = j.back_pressure_active ? 'On' : 'Off';
             document.getElementById('s-status').innerText = j.status.toUpperCase();
             
             const logBox = document.getElementById('logs');
@@ -651,7 +704,8 @@ const searchHTML = `
             container.innerHTML = '<div style="padding: 80px; text-align: center;"><div style="color: var(--accent); margin-bottom: 16px; font-weight: 600;">ACCESSING DISTRIBUTED DATABASE...</div><div style="font-size: 13px; color: var(--text-secondary);">Querying memory nodes and disk indices</div></div>';
             
             try {
-                const r = await fetch('/api/search?q=' + encodeURIComponent(q));
+                const params = new URLSearchParams({ query: q, sortBy: 'relevance' });
+                const r = await fetch('/search?' + params.toString());
                 const data = await r.json();
                 container.innerHTML = '';
                 
@@ -666,8 +720,6 @@ const searchHTML = `
                     ` + "`" + `;
                     return;
                 }
-                
-                data.sort((a,b) => b.relevance - a.relevance);
                 countLabel.innerText = data.length + ' indexed pages relevant to your query';
                 countLabel.style.display = 'block';
 
@@ -677,7 +729,8 @@ const searchHTML = `
                     div.innerHTML = ` + "`" + `
                         <a href="${res.url}" target="_blank" class="search-result-url">${res.url}</a>
                         <div class="search-result-meta">
-                            <div>Score: <b>${Math.round(res.relevance)}</b></div>
+                            <div>Score: <b>${res.relevance_score}</b></div>
+                            <div>Frequency: <b>${res.frequency}</b></div>
                             <div>Depth: <b>${res.depth}</b></div>
                             <div style="opacity: 0.6">Discovery Origin: <b>${new URL(res.origin_url).hostname}</b></div>
                         </div>
@@ -687,6 +740,12 @@ const searchHTML = `
             } catch (e) {
                 container.innerHTML = '<div style="padding: 40px; text-align: center; color: var(--error)">DATABASE CONNECTION LOST: Unable to fetch neural index signals.</div>';
             }
+        }
+
+        const urlQuery = new URLSearchParams(window.location.search).get('query');
+        if (urlQuery) {
+            document.getElementById('q').value = urlQuery;
+            doSearch();
         }
     </script>
 </body></html>

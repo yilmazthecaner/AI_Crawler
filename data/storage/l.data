@@ -1,0 +1,13 @@
+links http://localhost:3600/fixture/start http://localhost:3600/fixture/start 0 2
+local http://localhost:3600/fixture/start http://localhost:3600/fixture/start 0 1
+localhost http://localhost:3600/fixture/start http://localhost:3600/fixture/start 0 3
+like http://localhost:3600/fixture/program-patterns http://localhost:3600/fixture/start 1 1
+links http://localhost:3600/fixture/program-patterns http://localhost:3600/fixture/start 1 1
+localhost http://localhost:3600/fixture/program-patterns http://localhost:3600/fixture/start 1 1
+learners http://localhost:3600/fixture/python-basics http://localhost:3600/fixture/start 1 1
+links http://localhost:3600/fixture/python-basics http://localhost:3600/fixture/start 1 1
+localhost http://localhost:3600/fixture/python-basics http://localhost:3600/fixture/start 1 2
+loops http://localhost:3600/fixture/python-basics http://localhost:3600/fixture/start 1 1
+links http://localhost:3600/fixture/page-signals http://localhost:3600/fixture/start 1 1
+localhost http://localhost:3600/fixture/page-signals http://localhost:3600/fixture/start 1 1
+links http://localhost:3600/fixture/pipeline-notes http://localhost:3600/fixture/start 2 1

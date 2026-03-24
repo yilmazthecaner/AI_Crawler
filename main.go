@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	webPort := flag.Int("port", 8080, "Port for the Web UI")
+	webPort := flag.Int("port", 3600, "Port for the Web UI")
 	flag.Parse()
 
 	fmt.Println("--- SpiderSearch (Brightwave Edition) ---")
@@ -17,9 +17,9 @@ func main() {
 
 	fi := index.NewFileIndex()
 	jm := crawler.NewJobManager(fi)
-	
+
 	// Load past jobs from persistence
-	jm.LoadPreviousJobs(".")
+	jm.LoadPreviousJobs(index.JobsDir)
 
 	web := ui.NewWebUI(jm, fi, *webPort)
 

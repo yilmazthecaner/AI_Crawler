@@ -3,11 +3,12 @@ package crawler
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"sort"
 	"spidersearch/internal/index"
 	"sync"
-	"os"
+	"time"
 )
 
 type JobManager struct {
@@ -41,9 +42,9 @@ func (jm *JobManager) ListJobs() []*Job {
 	jm.mu.RLock()
 	defer jm.mu.RUnlock()
 
-	var list []*Job
-	for _, j := range jm.Jobs {
-		list = append(list, j)
+	list := make([]*Job, 0, len(jm.Jobs))
+	for _, job := range jm.Jobs {
+		list = append(list, job)
 	}
 
 	sort.Slice(list, func(i, j int) bool {
@@ -54,33 +55,54 @@ func (jm *JobManager) ListJobs() []*Job {
 
 func (jm *JobManager) ClearJobs() {
 	jm.mu.Lock()
-	defer jm.mu.Unlock()
-
-	for id := range jm.Jobs {
-		os.Remove(fmt.Sprintf("%s.data", id))
+	jobs := make([]*Job, 0, len(jm.Jobs))
+	for _, job := range jm.Jobs {
+		jobs = append(jobs, job)
 	}
 	jm.Jobs = make(map[string]*Job)
-	os.Remove("visited_urls.data")
+	jm.mu.Unlock()
+
+	for _, job := range jobs {
+		job.Cancel()
+	}
+	_ = os.RemoveAll(index.JobsDir)
+	_ = os.Remove(index.VisitedURLsFile)
+	_ = jm.FileIndex.Reset()
+	_ = index.EnsureDataDirs()
 }
 
 func (jm *JobManager) LoadPreviousJobs(dir string) {
-	files, _ := filepath.Glob("*.data")
-	for _, f := range files {
-		if f == "visited_urls.data" {
-			continue
-		}
-		
-		data, err := os.ReadFile(f)
+	if dir == "" {
+		dir = index.JobsDir
+	}
+
+	_ = index.EnsureDataDirs()
+
+	files, _ := filepath.Glob(filepath.Join(dir, "*.json"))
+	for _, filePath := range files {
+		data, err := os.ReadFile(filePath)
 		if err != nil {
 			continue
 		}
 
 		var job Job
-		if err := json.Unmarshal(data, &job); err == nil {
-			job.FileIndex = jm.FileIndex
-			jm.mu.Lock()
-			jm.Jobs[job.ID] = &job
-			jm.mu.Unlock()
+		if err := json.Unmarshal(data, &job); err != nil {
+			continue
 		}
+
+		job.FileIndex = jm.FileIndex
+
+		if job.Status == StatusRunning {
+			job.Status = StatusCancelled
+			if job.EndTime.IsZero() {
+				job.EndTime = time.Now()
+			}
+			job.Duration = int(job.EndTime.Sub(job.StartTime).Seconds())
+			job.Logs = append(job.Logs, fmt.Sprintf("[%s] Job recovered after restart and marked as cancelled.", time.Now().Format("15:04:05")))
+		}
+
+		jm.mu.Lock()
+		jm.Jobs[job.ID] = &job
+		jm.mu.Unlock()
 	}
 }

@@ -1,0 +1,8 @@
+deterministic http://localhost:3600/fixture/start http://localhost:3600/fixture/start 0 1
+during http://localhost:3600/fixture/start http://localhost:3600/fixture/start 0 1
+data http://localhost:3600/fixture/program-patterns http://localhost:3600/fixture/start 1 1
+design http://localhost:3600/fixture/program-patterns http://localhost:3600/fixture/start 1 1
+depth http://localhost:3600/fixture/page-signals http://localhost:3600/fixture/start 1 1
+data http://localhost:3600/fixture/pipeline-notes http://localhost:3600/fixture/start 2 1
+deeper http://localhost:3600/fixture/pipeline-notes http://localhost:3600/fixture/start 2 1
+describe http://localhost:3600/fixture/pipeline-notes http://localhost:3600/fixture/start 2 1

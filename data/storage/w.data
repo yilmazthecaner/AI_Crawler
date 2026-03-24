@@ -1,0 +1,3 @@
+work http://localhost:3600/fixture/program-patterns http://localhost:3600/fixture/start 1 1
+while http://localhost:3600/fixture/page-signals http://localhost:3600/fixture/start 1 1
+while http://localhost:3600/fixture/pipeline-notes http://localhost:3600/fixture/start 2 1
