@@ -1,0 +1,29 @@
+{
+  "id": "1774367858_0",
+  "origin_url": "http://localhost:3600/fixture/start",
+  "depth": 2,
+  "status": "finished",
+  "logs": [
+    "[18:57:38] Starting job 1774367858_0 for http://localhost:3600/fixture/start (depth=2 workers=10 hitRate=5/sec queueCap=50 maxURLs=20)",
+    "[18:57:38] Crawling http://localhost:3600/fixture/start at depth 0",
+    "[18:57:39] Crawling http://localhost:3600/fixture/program-patterns at depth 1",
+    "[18:57:39] Crawling http://localhost:3600/fixture/python-basics at depth 1",
+    "[18:57:39] Crawling http://localhost:3600/fixture/page-signals at depth 1",
+    "[18:57:39] Crawling http://localhost:3600/fixture/pipeline-notes at depth 2",
+    "[18:57:39] Job completed successfully."
+  ],
+  "queue": [],
+  "start_time": "2026-03-24T18:57:38.612971+03:00",
+  "end_time": "2026-03-24T18:57:39.616853+03:00",
+  "duration": 1,
+  "max_workers": 10,
+  "hit_rate": 5,
+  "queue_capacity": 50,
+  "max_urls": 20,
+  "crawled_count": 5,
+  "error_count": 0,
+  "total_found": 5,
+  "active_workers": 0,
+  "back_pressure_active": false,
+  "back_pressure_reason": ""
+}

@@ -1,0 +1,4 @@
+every http://localhost:3600/fixture/start http://localhost:3600/fixture/start 0 1
+explorers http://localhost:3600/fixture/start http://localhost:3600/fixture/start 0 1
+easy http://localhost:3600/fixture/program-patterns http://localhost:3600/fixture/start 1 1
+explainability http://localhost:3600/fixture/page-signals http://localhost:3600/fixture/start 1 1
