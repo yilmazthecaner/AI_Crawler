@@ -1,12 +1,13 @@
 """
-FastAPI application — REST API + fixture pages.
+FastAPI application — REST API + fixture pages + Web UI.
 
 Endpoints
 ---------
-- POST /index         — start a crawl session
-- GET  /search?q=...  — search indexed pages
-- GET  /status        — system status dashboard
-- GET  /fixture/...   — deterministic test pages
+- GET  /               — web dashboard
+- POST /index          — start a crawl session
+- GET  /search?q=...   — search indexed pages
+- GET  /status         — system status dashboard
+- GET  /fixture/...    — deterministic test pages
 """
 
 from __future__ import annotations
@@ -14,10 +15,12 @@ from __future__ import annotations
 import asyncio
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from app import config, database as db, crawler, search
 from app.models import (
@@ -33,6 +36,8 @@ logging.basicConfig(
     format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
 )
 logger = logging.getLogger("api")
+
+STATIC_DIR = Path(__file__).parent / "static"
 
 
 # ── Lifespan ────────────────────────────────────────────────────────────────
@@ -59,6 +64,17 @@ app = FastAPI(
     version="2.0.0",
     lifespan=lifespan,
 )
+
+# Mount static assets (CSS, JS)
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+
+# ── GET / ───────────────────────────────────────────────────────────────────
+
+@app.get("/", response_class=HTMLResponse)
+async def root():
+    """Serve the web dashboard."""
+    return FileResponse(STATIC_DIR / "index.html")
 
 
 # ── POST /index ─────────────────────────────────────────────────────────────

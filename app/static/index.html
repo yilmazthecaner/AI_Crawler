@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpiderSearch | Multi-Agent Crawler</title>
+    <meta name="description" content="Advanced multi-agent web crawler and TF-IDF search engine with real-time monitoring">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <nav>
+        <a href="#" id="nav-crawler" class="active" onclick="showPage('crawler')">Spider Intelligence</a>
+        <a href="#" id="nav-search" onclick="showPage('search')">Global Discovery</a>
+    </nav>
+
+    <!-- ═══════════════════ CRAWLER PAGE ═══════════════════ -->
+    <div class="container page" id="page-crawler">
+        <h1 style="margin-bottom: 10px;">🕷️ SpiderSearch</h1>
+        <p class="subtitle">Advanced Multi-Agent Crawler Engine</p>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="stat-indexed">0</div>
+                <div class="stat-label">Pages Indexed</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-active">0</div>
+                <div class="stat-label">Active Sessions</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-queue">0</div>
+                <div class="stat-label">Queue Depth</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-rate">0</div>
+                <div class="stat-label">Crawl Rate /s</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-pressure">
+                    <span class="pressure-badge off">Off</span>
+                </div>
+                <div class="stat-label">Back Pressure</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2>🚀 Create New Crawl Session</h2>
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="origin">Origin URL</label>
+                    <input type="text" id="origin" placeholder="https://www.example.com">
+                    <p class="form-hint">Deterministic local demo: <code>http://localhost:8000/fixture/start</code></p>
+                </div>
+                <div class="form-group">
+                    <label for="depth">Depth (k)</label>
+                    <input type="number" id="depth" value="2" min="1" max="50">
+                </div>
+            </div>
+            <button id="btn-crawl" onclick="startCrawl()" class="btn-full">
+                Initialize Neural Crawl Sequence
+            </button>
+        </div>
+
+        <h2 class="section-title">Active Sessions</h2>
+        <div id="sessionList">
+            <div class="empty-state">No crawl sessions detected.</div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════ SEARCH PAGE ═══════════════════ -->
+    <div class="container page" id="page-search" style="display: none;">
+        <h1>Global Discovery</h1>
+        <p class="subtitle">Search through indices discovered by the swarm</p>
+
+        <div class="search-bar-card">
+            <div class="search-bar-inner">
+                <input type="text" id="search-q" placeholder="Enter search keywords or neural intent..." onkeypress="if(event.key==='Enter') doSearch()">
+                <button onclick="doSearch()" class="btn-search">Search</button>
+            </div>
+        </div>
+
+        <div id="results-count" class="results-count" style="display: none;"></div>
+        <div id="results" class="card results-card" style="padding: 0; display: none; overflow: hidden;"></div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
